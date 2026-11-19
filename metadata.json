@@ -1,0 +1,8 @@
+{
+  "name": "CampusEase",
+  "description": "Verified local services marketplace for DBS Global University and Selaqui students — discover, compare, and book food, laundry, printing, transport, and stationery in one place.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

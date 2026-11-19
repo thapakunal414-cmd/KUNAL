@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CampusEase — Verified Campus Services for Selaqui &amp; Dehradun</title>
+    <meta
+      name="description"
+      content="Discover, compare prices, and book verified local food, laundry, printing, transport, and stationery services around DBS Global University, Selaqui."
+    />
+    <meta property="og:title" content="CampusEase — Verified Campus Services for Selaqui & Dehradun" />
+    <meta
+      property="og:description"
+      content="Discover, compare prices, and book verified local food, laundry, printing, transport, and stationery services around DBS Global University, Selaqui."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('campusease_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="bg-[#F6F7F6] dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased selection:bg-[#14532D]/15 dark:selection:bg-emerald-500/25 selection:text-[#14532D] dark:selection:text-emerald-300 transition-colors duration-150">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

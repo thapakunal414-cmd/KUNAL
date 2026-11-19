@@ -1,0 +1,303 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Reusable Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    // Entity Validation Blueprints
+    function isValidUserPublicProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'hostelArea', 'courseLabel', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'hostelArea', 'courseLabel', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.hostelArea is string && data.hostelArea.size() >= 1 && data.hostelArea.size() <= 80
+        && data.courseLabel is string && data.courseLabel.size() >= 1 && data.courseLabel.size() <= 60
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'phone', 'hostelAddress', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'phone', 'hostelAddress', 'createdAt', 'updatedAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 20
+        && data.hostelAddress is string && data.hostelAddress.size() >= 2 && data.hostelAddress.size() <= 140
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll([
+          'uid', 'bookingCode', 'studentName', 'hostelAddress', 'phone',
+          'paymentMethod', 'promoCode', 'subtotalInr', 'discountInr', 'totalInr',
+          'status', 'estimatedFulfillment', 'summaryLabel', 'itemCount',
+          'pointsEarned', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'bookingCode', 'studentName', 'hostelAddress', 'phone',
+          'paymentMethod', 'promoCode', 'subtotalInr', 'discountInr', 'totalInr',
+          'status', 'estimatedFulfillment', 'summaryLabel', 'itemCount',
+          'pointsEarned', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == request.auth.uid && isValidId(data.uid)
+        && data.bookingCode is string && data.bookingCode.size() >= 3 && data.bookingCode.size() <= 32 && data.bookingCode.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 80
+        && data.hostelAddress is string && data.hostelAddress.size() >= 2 && data.hostelAddress.size() <= 140
+        && data.phone is string && data.phone.size() >= 7 && data.phone.size() <= 20
+        && data.paymentMethod in ['UPI', 'Hostel Gate COD']
+        && data.promoCode is string && data.promoCode.size() <= 40
+        && data.subtotalInr is number && data.subtotalInr >= 0 && data.subtotalInr <= 50000
+        && data.discountInr is number && data.discountInr >= 0 && data.discountInr <= data.subtotalInr
+        && data.totalInr is number && data.totalInr >= 0 && data.totalInr <= 50000
+        && data.status in ['Confirmed', 'In Progress', 'Completed', 'Cancelled']
+        && data.estimatedFulfillment is string && data.estimatedFulfillment.size() >= 1 && data.estimatedFulfillment.size() <= 120
+        && data.summaryLabel is string && data.summaryLabel.size() >= 1 && data.summaryLabel.size() <= 160
+        && data.itemCount is number && data.itemCount >= 1 && data.itemCount <= 50
+        && data.pointsEarned is number && data.pointsEarned >= 0 && data.pointsEarned <= 5000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBookingItem(data) {
+      return data.keys().hasAll([
+          'uid', 'serviceId', 'serviceName', 'category', 'packageId',
+          'packageName', 'unitPriceInr', 'unitLabel', 'quantity', 'timeSlot', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'serviceId', 'serviceName', 'category', 'packageId',
+          'packageName', 'unitPriceInr', 'unitLabel', 'quantity', 'timeSlot', 'createdAt'
+        ])
+        && data.uid is string && data.uid == request.auth.uid && isValidId(data.uid)
+        && data.serviceId is string && isValidId(data.serviceId)
+        && data.serviceName is string && data.serviceName.size() >= 1 && data.serviceName.size() <= 100
+        && data.category in ['Food', 'Laundry', 'Printing', 'Transport', 'Stationery']
+        && data.packageId is string && isValidId(data.packageId)
+        && data.packageName is string && data.packageName.size() >= 1 && data.packageName.size() <= 120
+        && data.unitPriceInr is number && data.unitPriceInr >= 0 && data.unitPriceInr <= 10000
+        && data.unitLabel is string && data.unitLabel.size() >= 1 && data.unitLabel.size() <= 40
+        && data.quantity is number && data.quantity >= 1 && data.quantity <= 50
+        && data.timeSlot is string && data.timeSlot.size() >= 1 && data.timeSlot.size() <= 60
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLedgerEntry(data, userId) {
+      return data.keys().hasAll(['uid', 'label', 'pointsDelta', 'bookingId', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'label', 'pointsDelta', 'bookingId', 'createdAt'])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.label is string && data.label.size() >= 1 && data.label.size() <= 160
+        && data.pointsDelta is number && data.pointsDelta >= -1000 && data.pointsDelta <= 1000
+        && data.bookingId is string && data.bookingId.size() <= 128
+        && data.createdAt is timestamp;
+    }
+
+    function isValidVoucher(data, userId) {
+      return data.keys().hasAll([
+          'uid', 'code', 'tierId', 'title', 'discountInr',
+          'pointsSpent', 'usedInBookingId', 'redeemedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'code', 'tierId', 'title', 'discountInr',
+          'pointsSpent', 'usedInBookingId', 'redeemedAt'
+        ])
+        && data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.code is string && data.code.size() >= 4 && data.code.size() <= 40 && data.code.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.tierId is string && isValidId(data.tierId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.discountInr is number && data.discountInr >= 1 && data.discountInr <= 1000
+        && data.pointsSpent is number && data.pointsSpent >= 1 && data.pointsSpent <= 1000
+        && data.usedInBookingId is string && data.usedInBookingId.size() <= 128
+        && data.redeemedAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll([
+          'uid', 'serviceId', 'bookingCode', 'studentName',
+          'hostelArea', 'rating', 'comment', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'serviceId', 'bookingCode', 'studentName',
+          'hostelArea', 'rating', 'comment', 'createdAt'
+        ])
+        && data.uid is string && data.uid == request.auth.uid && isValidId(data.uid)
+        && data.serviceId is string && isValidId(data.serviceId)
+        && data.bookingCode is string && data.bookingCode.size() >= 1 && data.bookingCode.size() <= 40 && data.bookingCode.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 80
+        && data.hostelArea is string && data.hostelArea.size() >= 1 && data.hostelArea.size() <= 80
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() >= 1 && data.comment.size() <= 500
+        && data.createdAt is timestamp;
+    }
+
+    // Users Split Collections (Public Profile vs Private PII)
+    match /users/{userId}/public/profile {
+      allow get: if isValidId(userId) && isVerifiedUser();
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPublicProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPublicProfile(incoming(), userId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'hostelArea', 'courseLabel', 'updatedAt'])
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /users/{userId}/private/info {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivateInfo(incoming(), userId)
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isOwner(userId)
+        && isValidUserPrivateInfo(incoming(), userId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'hostelAddress', 'updatedAt'])
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    // User Loyalty Ledger (Append-only)
+    match /users/{userId}/loyaltyLedger/{entryId} {
+      allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
+      allow get: if isValidId(userId) && isValidId(entryId) && isOwner(userId) && existing().uid == request.auth.uid;
+      allow create: if isValidId(userId)
+        && isValidId(entryId)
+        && isOwner(userId)
+        && isValidLedgerEntry(incoming(), userId)
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // User Redeemed Vouchers (Single-use transition)
+    match /users/{userId}/vouchers/{voucherId} {
+      allow list: if isOwner(userId) && resource.data.uid == request.auth.uid;
+      allow get: if isValidId(userId) && isValidId(voucherId) && isOwner(userId) && existing().uid == request.auth.uid;
+      allow create: if isValidId(userId)
+        && isValidId(voucherId)
+        && isOwner(userId)
+        && isValidVoucher(incoming(), userId)
+        && incoming().usedInBookingId == ''
+        && incoming().redeemedAt == request.time;
+      allow update: if isValidId(userId)
+        && isValidId(voucherId)
+        && isOwner(userId)
+        && isValidVoucher(incoming(), userId)
+        && existing().usedInBookingId == ''
+        && incoming().usedInBookingId.size() >= 1
+        && incoming().diff(existing()).affectedKeys().hasOnly(['usedInBookingId'])
+        && incoming().uid == existing().uid
+        && incoming().code == existing().code
+        && incoming().tierId == existing().tierId
+        && incoming().title == existing().title
+        && incoming().discountInr == existing().discountInr
+        && incoming().pointsSpent == existing().pointsSpent
+        && incoming().redeemedAt == existing().redeemedAt;
+      allow delete: if false;
+    }
+
+    // Student Bookings & Subcollection Items
+    match /bookings/{bookingId} {
+      allow list: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+      allow get: if isValidId(bookingId) && isVerifiedUser() && existing().uid == request.auth.uid;
+      allow create: if isValidId(bookingId)
+        && isVerifiedUser()
+        && isValidBooking(incoming())
+        && incoming().status == 'Confirmed'
+        && incoming().pointsEarned == 0
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(bookingId)
+        && isVerifiedUser()
+        && existing().uid == request.auth.uid
+        && isValidBooking(incoming())
+        && !(existing().status in ['Completed', 'Cancelled'])
+        && incoming().uid == existing().uid
+        && incoming().bookingCode == existing().bookingCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Mark In Progress
+          (existing().status == 'Confirmed'
+            && incoming().status == 'In Progress'
+            && incoming().pointsEarned == 0
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'estimatedFulfillment', 'updatedAt'])) ||
+          // Action: Mark Completed and award points
+          (incoming().status == 'Completed'
+            && incoming().pointsEarned >= 1
+            && incoming().pointsEarned <= 5000
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'estimatedFulfillment', 'pointsEarned', 'updatedAt'])) ||
+          // Action: Cancel booking
+          (incoming().status == 'Cancelled'
+            && incoming().pointsEarned == 0
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'estimatedFulfillment', 'updatedAt']))
+        );
+      allow delete: if false;
+
+      match /items/{itemId} {
+        allow list: if isVerifiedUser()
+          && resource.data.uid == request.auth.uid;
+        allow get: if isValidId(bookingId)
+          && isValidId(itemId)
+          && isVerifiedUser()
+          && existing().uid == request.auth.uid
+          && get(/databases/$(database)/documents/bookings/$(bookingId)).data.uid == request.auth.uid;
+        allow create: if isValidId(bookingId)
+          && isValidId(itemId)
+          && isVerifiedUser()
+          && isValidBookingItem(incoming())
+          && exists(/databases/$(database)/documents/bookings/$(bookingId))
+          && get(/databases/$(database)/documents/bookings/$(bookingId)).data.uid == request.auth.uid
+          && incoming().createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    // Verified Student Reviews (Append-only, owner-scoped reads)
+    match /reviews/{reviewId} {
+      allow list: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+      allow get: if isValidId(reviewId) && isVerifiedUser() && existing().uid == request.auth.uid;
+      allow create: if isValidId(reviewId)
+        && isVerifiedUser()
+        && isValidReview(incoming())
+        && incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}
