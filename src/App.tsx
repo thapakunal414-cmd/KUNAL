@@ -11,6 +11,7 @@ import {MyBookingsDrawer} from './components/MyBookingsDrawer';
 import {PartnerModal} from './components/PartnerModal';
 import {ServiceDetailModal} from './components/ServiceDetailModal';
 import {OperationType, auth, db, handleFirestoreError} from './firebase';
+import {loadDirectoryData} from './lib/campusApi';
 import type {
   BookingRecord,
   CampusArea,
@@ -107,28 +108,11 @@ export default function App() {
     setLoading(true);
     setLoadError(null);
     try {
-      const [svcRes, bkgRes, sumRes, rwdRes] = await Promise.all([
-        fetch('/api/services'),
-        fetch('/api/bookings'),
-        fetch('/api/pilot-summary'),
-        fetch('/api/rewards'),
-      ]);
-      if (!svcRes.ok) throw new Error('Failed to load services');
-      const svcData = await svcRes.json();
-      setServices(svcData.services || []);
-
-      if (bkgRes.ok) {
-        const bkgData = await bkgRes.json();
-        setBookings(bkgData.bookings || []);
-      }
-      if (sumRes.ok) {
-        const sumData = await sumRes.json();
-        setPilotSummary(sumData);
-      }
-      if (rwdRes.ok) {
-        const rwdData = await rwdRes.json();
-        setLoyalty(rwdData.loyalty || null);
-      }
+      const data = await loadDirectoryData();
+      setServices(data.services);
+      setBookings(data.bookings);
+      setPilotSummary(data.pilotSummary);
+      setLoyalty(data.loyalty);
     } catch {
       setLoadError('Unable to reach CampusEase service directory. Please retry.');
     } finally {

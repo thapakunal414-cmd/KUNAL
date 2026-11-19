@@ -1,5 +1,6 @@
 import {useState, type FormEvent} from 'react';
 import {CheckCircle2, Clock, MessageSquarePlus, PackageCheck, Star, X, XCircle} from 'lucide-react';
+import {submitServiceReview, updateBookingStatus} from '../lib/campusApi';
 import type {
   BookingRecord,
   BookingStatus,
@@ -91,15 +92,8 @@ export function MyBookingsDrawer({
   async function updateStatus(id: string, status: BookingStatus) {
     setUpdatingId(id);
     try {
-      const res = await fetch(`/api/bookings/${id}`, {
-        method: 'PATCH',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({status}),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        onStatusUpdated(data.booking, data.loyalty);
-      }
+      const data = await updateBookingStatus(id, status);
+      onStatusUpdated(data.booking, data.loyalty);
     } finally {
       setUpdatingId(null);
     }
@@ -135,26 +129,20 @@ export function MyBookingsDrawer({
     setSubmittingReview(true);
     setReviewError(null);
     try {
-      const res = await fetch(`/api/services/${reviewTarget.serviceId}/reviews`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          studentName: cleanName,
-          hostelOrArea: derivedHostel,
-          rating: reviewRating,
-          comment: cleanComment,
-          bookingId: booking.id,
-        }),
+      const data = await submitServiceReview({
+        serviceId: reviewTarget.serviceId,
+        studentName: cleanName,
+        hostelOrArea: derivedHostel,
+        rating: reviewRating,
+        comment: cleanComment,
+        bookingId: booking.id,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setReviewError(data.error || 'Could not submit your review. Please try again.');
-        return;
-      }
       onReviewSubmitted(data.service, data.booking ?? null, data.review);
       closeReviewComposer();
-    } catch {
-      setReviewError('Network error while submitting review.');
+    } catch (err) {
+      setReviewError(
+        err instanceof Error ? err.message : 'Could not submit your review. Please try again.',
+      );
     } finally {
       setSubmittingReview(false);
     }

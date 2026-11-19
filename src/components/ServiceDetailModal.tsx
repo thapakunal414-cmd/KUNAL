@@ -1,5 +1,6 @@
 import {useEffect, useState, type FormEvent} from 'react';
 import {CheckCircle2, Clock, MapPin, Minus, Plus, Star, X} from 'lucide-react';
+import {submitServiceReview} from '../lib/campusApi';
 import type {ServicePackage, ServiceProvider} from '../types';
 import {ServiceImage} from './ServiceImage';
 
@@ -63,28 +64,20 @@ export function ServiceDetailModal({
     setSubmittingReview(true);
 
     try {
-      const res = await fetch(`/api/services/${service.id}/reviews`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          studentName: reviewName,
-          hostelOrArea: reviewHostel,
-          rating: reviewRating,
-          comment: reviewComment,
-        }),
+      const data = await submitServiceReview({
+        serviceId: service.id,
+        studentName: reviewName,
+        hostelOrArea: reviewHostel,
+        rating: reviewRating,
+        comment: reviewComment,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setReviewError(data.error || 'Could not submit review.');
-      } else {
-        onReviewSubmitted(data.service);
-        setReviewName('');
-        setReviewComment('');
-        setReviewRating(5);
-        setReviewSuccess(true);
-      }
-    } catch {
-      setReviewError('Network error while posting review.');
+      onReviewSubmitted(data.service);
+      setReviewName('');
+      setReviewComment('');
+      setReviewRating(5);
+      setReviewSuccess(true);
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : 'Could not submit review.');
     } finally {
       setSubmittingReview(false);
     }

@@ -1,5 +1,6 @@
 import {useEffect, useState, type FormEvent} from 'react';
 import {CheckCircle2, Minus, Plus, Trash2, X} from 'lucide-react';
+import {createBooking} from '../lib/campusApi';
 import type {BookingRecord, CartItem, LoyaltyState, RedeemedVoucher} from '../types';
 import type {StudentProfile} from './AuthModal';
 
@@ -86,27 +87,18 @@ export function BookingBagDrawer({
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/bookings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          studentName,
-          hostelAddress,
-          phone,
-          paymentMethod,
-          promoCode,
-          items,
-        }),
+      const data = await createBooking({
+        studentName,
+        hostelAddress,
+        phone,
+        paymentMethod,
+        promoCode,
+        items,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Could not confirm booking.');
-      } else {
-        setConfirmedBooking(data.booking);
-        onBookingSuccess(data.booking, data.loyalty);
-      }
-    } catch {
-      setError('Network error while confirming booking.');
+      setConfirmedBooking(data.booking);
+      onBookingSuccess(data.booking, data.loyalty);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm booking.');
     } finally {
       setSubmitting(false);
     }

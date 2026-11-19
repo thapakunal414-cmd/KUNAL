@@ -1,5 +1,6 @@
 import {useState, type FormEvent} from 'react';
 import {CheckCircle2, X} from 'lucide-react';
+import {submitPartnerApplication} from '../lib/campusApi';
 import type {CampusArea, ServiceCategory, ServiceProvider} from '../types';
 
 interface PartnerModalProps {
@@ -44,34 +45,25 @@ export function PartnerModal({open, onClose, onPartnerCreated}: PartnerModalProp
     setSubmitting(true);
 
     try {
-      const res = await fetch('/api/partners', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          businessName,
-          ownerName,
-          category,
-          area,
-          phone,
-          startingPriceInr: Number(startingPriceInr),
-          serviceSummary,
-          studentDeal,
-        }),
+      const data = await submitPartnerApplication({
+        businessName,
+        ownerName,
+        category,
+        area,
+        phone,
+        startingPriceInr: Number(startingPriceInr),
+        serviceSummary,
+        studentDeal,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Could not submit partner listing.');
-      } else {
-        setCreatedName(data.service.name);
-        onPartnerCreated(data.service);
-        setBusinessName('');
-        setOwnerName('');
-        setPhone('');
-        setServiceSummary('');
-        setStudentDeal('');
-      }
-    } catch {
-      setError('Network error submitting partner form.');
+      setCreatedName(data.service.name);
+      onPartnerCreated(data.service);
+      setBusinessName('');
+      setOwnerName('');
+      setPhone('');
+      setServiceSummary('');
+      setStudentDeal('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not submit partner listing.');
     } finally {
       setSubmitting(false);
     }

@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {ArrowRight, Award, Check, Ticket} from 'lucide-react';
+import {redeemRewardTier} from '../lib/campusApi';
 import type {LoyaltyState, RedeemedVoucher} from '../types';
 
 interface RewardsSectionProps {
@@ -55,20 +56,11 @@ export function RewardsSection({
     setRedeemingId(tierId);
 
     try {
-      const res = await fetch('/api/rewards/redeem', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({tierId}),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setRedeemError(data.error || 'Could not redeem reward.');
-      } else {
-        onLoyaltyUpdated(data.loyalty);
-        setJustRedeemed(data.voucher);
-      }
-    } catch {
-      setRedeemError('Network error while redeeming reward.');
+      const data = await redeemRewardTier(tierId);
+      onLoyaltyUpdated(data.loyalty);
+      setJustRedeemed(data.voucher);
+    } catch (err) {
+      setRedeemError(err instanceof Error ? err.message : 'Could not redeem reward.');
     } finally {
       setRedeemingId(null);
     }
